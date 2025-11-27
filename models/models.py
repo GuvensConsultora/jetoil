@@ -18,12 +18,29 @@ class AccountCheckActionWizard(models.TransientModel):
         print(f"Fecha seleccionada: {self.date}")
         print("---------------------------------------------------------")
 
+        print(">>> JETOIL WIZARD: Iniciando REPARACIÓN y confirmación...")
+
+        # Obtenemos los cheques seleccionados
+        active_ids = self._context.get('active_ids', [])
+        checks = self.env['account.check'].browse(active_ids)
+
+        for check in checks:
+            # Buscamos las operaciones que causan el crash (sin origen)
+            operaciones_rotas = check.operation_ids.filtered(lambda op: not op.origin)
+            
+            if operaciones_rotas:
+                print(f">>> JETOIL: Reparando {len(operaciones_rotas)} operaciones rotas en cheque {check.id}")
+                # EN LUGAR DE BORRAR, LAS REPARAMOS.
+                # Les asignamos como origen el propio cheque.
+                # Esto evita el error 'NoneType' y es inofensivo para la lógica.
+                for op in operaciones_rotas:
+                    op.write({'origin': 'account.check,%s' % check.id})
         """
         Al confirmar el wizard, inyectamos el contexto 'force_account_payment_create'.
         Esto le da permiso a todo lo que ocurra después (incluido el reject del cheque)
         para crear pagos sin necesidad de un Grupo de Pagos.
         """
-        # 1. Preparamos el contexto VIP
+        # 2. Preparamos el contexto VIP
         ctx = self._context.copy()
         ctx.update({'force_account_payment_create': True})
         
